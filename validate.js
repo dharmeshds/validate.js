@@ -769,6 +769,13 @@
   });
 
   validate.validators = {
+    // Default value if key is not found
+    default: function(value, options, attribute, attributes) {
+      if (!_.has(attributes, attribute)) {
+        if (!value) value = options;
+        attributes[attribute] = value;
+      }
+    },
     // Presence validates that the value isn't empty
     presence: function(value, options) {
       options = v.extend({}, this.options, options);
@@ -981,8 +988,16 @@
         return v.unique(errors);
       }
     }, {
-      parse: null,
-      format: null
+      // The value is guaranteed not to be null or undefined but otherwise it
+      // could be anything.
+      parse: function(value, options) {
+        return +moment.utc(value);
+      },
+      // Input is a unix timestamp
+      format: function(value, options) {
+        var format = options.dateOnly ? "DDMMYYYY" : "YYYY-MM-DD hh:mm:ss";
+        return moment.utc(value).format(format);
+      }
     }),
     date: function(value, options) {
       options = v.extend({}, options, {dateOnly: true});
