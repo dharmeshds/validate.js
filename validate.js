@@ -133,6 +133,8 @@ var _ = require('lodash');
             attributes,
             options);
 
+          if (validator === 'default' && !value) value = validatorOptions;
+
           results.push({
             attribute: attr,
             value: value,
@@ -774,7 +776,6 @@ var _ = require('lodash');
     // Default value if key is not found
     default: function(value, options, attribute, attributes) {
       if (!_.has(attributes, attribute)) {
-        if (!value) value = options;
         attributes[attribute] = value;
       }
     },
