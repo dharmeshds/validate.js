@@ -6,6 +6,8 @@
  * For all details and documentation:
  * http://validatejs.org/
  */
+var moment = require('moment');
+var _ = require('lodash');
 
 (function(exports, module, define) {
   "use strict";
