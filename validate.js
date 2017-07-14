@@ -133,7 +133,7 @@ var _ = require('lodash');
             attributes,
             options);
 
-          if (validator === 'default' && !value) value = validatorOptions;
+          if (validator.name === 'default' && !value) value = validatorOptions;
 
           results.push({
             attribute: attr,
