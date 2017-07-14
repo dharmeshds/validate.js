@@ -123,6 +123,14 @@
           if (!validatorOptions) {
             continue;
           }
+
+          var err = validator.call(validator,
+            value,
+            validatorOptions,
+            attr,
+            attributes,
+            options);
+
           results.push({
             attribute: attr,
             value: value,
@@ -130,12 +138,7 @@
             globalOptions: options,
             attributes: attributes,
             options: validatorOptions,
-            error: validator.call(validator,
-                value,
-                validatorOptions,
-                attr,
-                attributes,
-                options)
+            error: err
           });
         }
       }
