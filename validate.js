@@ -6,8 +6,9 @@
  * For all details and documentation:
  * http://validatejs.org/
  */
-var moment = require('moment');
 var _ = require('lodash');
+var moment = require('moment');
+var LZString = require('lz-string');
 
 (function(exports, module, define) {
   "use strict";
@@ -134,6 +135,7 @@ var _ = require('lodash');
             options);
 
           if (validator.name === 'default' && !value) value = validatorOptions;
+          if (validator.name === 'compute' && !value) value = attributes[attr];
 
           results.push({
             attribute: attr,
@@ -176,8 +178,8 @@ var _ = require('lodash');
       options = v.extend({}, v.async.options, options);
 
       var WrapErrors = options.wrapErrors || function(errors) {
-        return errors;
-      };
+          return errors;
+        };
 
       // Removes unknown attributes
       if (options.cleanAttributes !== false) {
@@ -186,13 +188,18 @@ var _ = require('lodash');
 
       var results = v.runValidations(attributes, constraints, options);
 
+      var r = _.reduce(results , function(obj, param) {
+        obj[param.attribute] = param.value;
+        return obj;
+      }, {});
+
       return new v.Promise(function(resolve, reject) {
         v.waitForResults(results).then(function() {
           var errors = v.processValidationResults(results, options);
           if (errors) {
             reject(new WrapErrors(errors, options, attributes, constraints));
           } else {
-            resolve(attributes);
+            resolve(r);
           }
         }, function(err) {
           reject(err);
@@ -405,7 +412,7 @@ var _ = require('lodash');
       str = "" + str;
 
       return str
-        // Splits keys separated by periods
+      // Splits keys separated by periods
         .replace(/([^\s])\.([^\s])/g, '$1 $2')
         // Removes backslashes
         .replace(/\\+/g, '')
@@ -571,7 +578,7 @@ var _ = require('lodash');
           value = [];
           for (j in input.options) {
             option = input.options[j];
-             if (option && option.selected) {
+            if (option && option.selected) {
               value.push(v.sanitizeFormValue(option.value, options));
             }
           }
@@ -594,6 +601,40 @@ var _ = require('lodash');
         return null;
       }
       return value;
+    },
+
+    encode: function (buffer) {
+      return LZString.compressToBase64(buffer).toString()
+        .replace(/\+/g, '-') // Convert '+' to '-'
+        .replace(/\//g, '_') // Convert '/' to '_'
+        .replace(/=+$/, ''); // Remove ending '='
+    },
+
+    decode: function (base64) {
+      if (_.isNothing(base64)) return null;
+      // Add removed at end '='
+      base64 += Array(5 - base64.length % 4).join('=');
+
+      base64 = base64
+        .replace(/-/g, '+') // Convert '-' to '+'
+        .replace(/_/g, '/'); // Convert '_' to '/'
+
+      return LZString.decompressFromBase64(base64);
+    },
+
+    compress: function (str, encodeURI) {
+      if (!str) return null;
+      if (encodeURI)
+        return v.encode(LZString.compressToUTF16(str));
+      else
+        return LZString.compressToUTF16(str);
+    },
+
+    decompress: function (str, decodeURI) {
+      if (decodeURI)
+        return LZString.decompressFromUTF16(v.decode(str));
+      else
+        return LZString.decompressFromUTF16(str);
     },
 
     capitalize: function(str) {
@@ -641,11 +682,11 @@ var _ = require('lodash');
         , prettify = options.prettify || v.prettify;
       errors.forEach(function(errorInfo) {
         var error = v.result(errorInfo.error,
-            errorInfo.value,
-            errorInfo.attribute,
-            errorInfo.options,
-            errorInfo.attributes,
-            errorInfo.globalOptions);
+          errorInfo.value,
+          errorInfo.attribute,
+          errorInfo.options,
+          errorInfo.attributes,
+          errorInfo.globalOptions);
 
         if (!v.isString(error)) {
           ret.push(errorInfo);
@@ -779,6 +820,34 @@ var _ = require('lodash');
         attributes[attribute] = value;
       }
     },
+    // Default value if key is not found
+    compute: function(value, options, attribute, attributes) {
+      if (_.has(options, 'concatenate')) {
+        var _value = '';
+        _.forEach(options.concatenate, function(attr) {
+          if (attr.attribute === '^utcDate') {
+            _value = _value + moment(new Date().toISOString()).utc().valueOf();
+          } else {
+            if (_.has(attr, 'padStart')) {
+              _value = _value + _.padStart(attributes[attr.attribute], attr.padStart, attr.padChar);
+            } else {
+              _value = _value + attributes[attr.attribute];
+            }
+          }
+        });
+        console.log(_value);
+        attributes[attribute] = _value;
+      }
+      if (_.has(options, 'compress')) {
+        var _value = '';
+        _.forEach(options.compress.attributes, function(attr) {
+          _value = _value + attributes[attr];
+        });
+        _value = v.compress(_value, options.compress.encodeURI);
+        console.log(_value);
+        attributes[attribute] = _value;
+      }
+    },
     // Presence validates that the value isn't empty
     presence: function(value, options) {
       options = v.extend({}, this.options, options);
@@ -846,16 +915,16 @@ var _ = require('lodash');
         , name
         , count
         , checks = {
-            greaterThan:          function(v, c) { return v > c; },
-            greaterThanOrEqualTo: function(v, c) { return v >= c; },
-            equalTo:              function(v, c) { return v === c; },
-            lessThan:             function(v, c) { return v < c; },
-            lessThanOrEqualTo:    function(v, c) { return v <= c; },
-            divisibleBy:          function(v, c) { return v % c === 0; }
-          }
+        greaterThan:          function(v, c) { return v > c; },
+        greaterThanOrEqualTo: function(v, c) { return v >= c; },
+        equalTo:              function(v, c) { return v === c; },
+        lessThan:             function(v, c) { return v < c; },
+        lessThanOrEqualTo:    function(v, c) { return v <= c; },
+        divisibleBy:          function(v, c) { return v % c === 0; }
+      }
         , prettify = options.prettify ||
-          (globalOptions && globalOptions.prettify) ||
-          v.prettify;
+        (globalOptions && globalOptions.prettify) ||
+        v.prettify;
 
       // Strict will check that it is a valid looking number
       if (v.isString(value) && options.strict) {
@@ -919,15 +988,15 @@ var _ = require('lodash');
 
       if (options.odd && value % 2 !== 1) {
         errors.push(options.notOdd ||
-            this.notOdd ||
-            this.message ||
-            "must be odd");
+          this.notOdd ||
+          this.message ||
+          "must be odd");
       }
       if (options.even && value % 2 !== 0) {
         errors.push(options.notEven ||
-            this.notEven ||
-            this.message ||
-            "must be even");
+          this.notEven ||
+          this.message ||
+          "must be even");
       }
 
       if (errors.length) {
@@ -1103,8 +1172,8 @@ var _ = require('lodash');
           return v1 === v2;
         }
         , prettify = options.prettify ||
-          (globalOptions && globalOptions.prettify) ||
-          v.prettify;
+        (globalOptions && globalOptions.prettify) ||
+        v.prettify;
 
       if (!comparator(value, otherValue, options, attribute, attributes)) {
         return v.format(message, {attribute: prettify(options.attribute)});
@@ -1151,26 +1220,26 @@ var _ = require('lodash');
       }
 
       regex +=
-          // IP address dotted notation octets
-          // excludes loopback network 0.0.0.0
-          // excludes reserved space >= 224.0.0.0
-          // excludes network & broacast addresses
-          // (first & last IP address of each class)
-          "(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])" +
-          "(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}" +
-          "(?:\\.(?:[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))" +
+        // IP address dotted notation octets
+        // excludes loopback network 0.0.0.0
+        // excludes reserved space >= 224.0.0.0
+        // excludes network & broacast addresses
+        // (first & last IP address of each class)
+        "(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])" +
+        "(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}" +
+        "(?:\\.(?:[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))" +
         "|" +
-          // host name
-          "(?:(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)" +
-          // domain name
-          "(?:\\.(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)*" +
-          tld +
+        // host name
+        "(?:(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)" +
+        // domain name
+        "(?:\\.(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)*" +
+        tld +
         ")" +
         // port number
         "(?::\\d{2,5})?" +
         // resource path
         "(?:[/?#]\\S*)?" +
-      "$";
+        "$";
 
       var PATTERN = new RegExp(regex, 'i');
       if (!PATTERN.exec(value)) {
@@ -1205,6 +1274,6 @@ var _ = require('lodash');
 
   validate.exposeModule(validate, this, exports, module, define);
 }).call(this,
-        typeof exports !== 'undefined' ? /* istanbul ignore next */ exports : null,
-        typeof module !== 'undefined' ? /* istanbul ignore next */ module : null,
-        typeof define !== 'undefined' ? /* istanbul ignore next */ define : null);
+  typeof exports !== 'undefined' ? /* istanbul ignore next */ exports : null,
+  typeof module !== 'undefined' ? /* istanbul ignore next */ module : null,
+  typeof define !== 'undefined' ? /* istanbul ignore next */ define : null);
