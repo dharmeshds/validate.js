@@ -8,7 +8,7 @@
  */
 var _ = require('lodash');
 var moment = require('moment');
-var LZString = require('lz-string');
+var bs58 = require('bs58');
 
 (function(exports, module, define) {
   "use strict";
@@ -603,38 +603,16 @@ var LZString = require('lz-string');
       return value;
     },
 
-    encode: function (buffer) {
-      return LZString.compressToBase64(buffer).toString()
-        .replace(/\+/g, '-') // Convert '+' to '-'
-        .replace(/\//g, '_') // Convert '/' to '_'
-        .replace(/=+$/, ''); // Remove ending '='
+    compress: function (str) {
+      var bytes = Buffer.from(str, 'hex');
+      var _ret = bs58.encode(bytes);
+      return _ret;
     },
 
-    decode: function (base64) {
-      if (_.isNothing(base64)) return null;
-      // Add removed at end '='
-      base64 += Array(5 - base64.length % 4).join('=');
-
-      base64 = base64
-        .replace(/-/g, '+') // Convert '-' to '+'
-        .replace(/_/g, '/'); // Convert '_' to '/'
-
-      return LZString.decompressFromBase64(base64);
-    },
-
-    compress: function (str, encodeURI) {
-      if (!str) return null;
-      if (encodeURI)
-        return v.encode(LZString.compressToUTF16(str));
-      else
-        return LZString.compressToUTF16(str);
-    },
-
-    decompress: function (str, decodeURI) {
-      if (decodeURI)
-        return LZString.decompressFromUTF16(v.decode(str));
-      else
-        return LZString.decompressFromUTF16(str);
+    decompress: function (str) {
+      var bytes = bs58.decode(str);
+      var _ret = bytes.toString('hex');
+      return _ret;
     },
 
     capitalize: function(str) {
