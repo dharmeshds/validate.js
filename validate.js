@@ -813,7 +813,6 @@ var bs58 = require('bs58');
             }
           }
         });
-        console.log(_value);
         attributes[attribute] = _value;
       }
       if (_.has(options, 'compress')) {
@@ -822,7 +821,6 @@ var bs58 = require('bs58');
           _value = _value + attributes[attr];
         });
         _value = v.compress(_value, options.compress.encodeURI);
-        console.log(_value);
         attributes[attribute] = _value;
       }
     },
