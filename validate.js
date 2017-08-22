@@ -800,27 +800,31 @@ var bs58 = require('bs58');
     },
     // Default value if key is not found
     compute: function(value, options, attribute, attributes) {
-      if (_.has(options, 'concatenate')) {
-        var _value = '';
-        _.forEach(options.concatenate, function(attr) {
-          if (attr.attribute === '^utcDate') {
-            _value = _value + moment(new Date().toISOString()).utc().valueOf();
-          } else {
-            if (_.has(attr, 'padStart')) {
-              _value = _value + _.padStart(attributes[attr.attribute], attr.padStart, attr.padChar);
-            } else {
-              _value = _value + attributes[attr.attribute];
-            }
-          }
-        });
-        attributes[attribute] = _value;
-      }
       if (_.has(options, 'compress')) {
         var _value = '';
         _.forEach(options.compress.attributes, function(attr) {
           _value = _value + attributes[attr];
         });
         _value = v.compress(_value, options.compress.encodeURI);
+        attributes[attribute] = _value;
+      }
+      if (_.has(options, 'concatenate')) {
+        var _value = '';
+        _.forEach(options.concatenate, function(attr) {
+          if (attr.attribute === '^utcDate') {
+            _value = _value + moment(new Date().toISOString()).utc().valueOf();
+          } else {
+            if (attr.attribute.substring(0,1) === '~') {
+              _value = _value + attr.attribute.substring(1);
+            } else {
+              if (_.has(attr, 'padStart')) {
+                _value = _value + _.padStart(attributes[attr.attribute], attr.padStart, attr.padChar);
+              } else {
+                _value = _value + attributes[attr.attribute];
+              }
+            }
+          }
+        });
         attributes[attribute] = _value;
       }
     },
