@@ -9,6 +9,7 @@
 var _ = require('lodash');
 var moment = require('moment');
 var bs58 = require('bs58');
+let sh = require('shorthash');
 
 (function(exports, module, define) {
   "use strict";
@@ -610,6 +611,12 @@ var bs58 = require('bs58');
       return str[0].toUpperCase() + str.slice(1);
     },
 
+    compress: function (str) {
+      var bytes = Buffer.from(str, 'hex');
+      var _ret = bs58.encode(bytes);
+      return _ret;
+    },
+
     // Remove all errors who's error attribute is empty (null or undefined)
     pruneEmptyErrors: function(errors) {
       return errors.filter(function(error) {
@@ -793,7 +800,7 @@ var bs58 = require('bs58');
         _.forEach(options.shorten.attributes, function(attr) {
           _value = _value + attributes[attr];
         });
-        _value = sh.unique(_value);
+        _value = sh.unique(v.compress(_value, true));
         attributes[attribute] = _value;
       }
       if (_.has(options, 'concatenate')) {
