@@ -603,18 +603,6 @@ var bs58 = require('bs58');
       return value;
     },
 
-    compress: function (str) {
-      var bytes = Buffer.from(str, 'hex');
-      var _ret = bs58.encode(bytes);
-      return _ret;
-    },
-
-    decompress: function (str) {
-      var bytes = bs58.decode(str);
-      var _ret = bytes.toString('hex');
-      return _ret;
-    },
-
     capitalize: function(str) {
       if (!v.isString(str)) {
         return str;
@@ -800,12 +788,12 @@ var bs58 = require('bs58');
     },
     // Default value if key is not found
     compute: function(value, options, attribute, attributes) {
-      if (_.has(options, 'compress')) {
+      if (_.has(options, 'shorten')) {
         var _value = '';
-        _.forEach(options.compress.attributes, function(attr) {
+        _.forEach(options.shorten.attributes, function(attr) {
           _value = _value + attributes[attr];
         });
-        _value = v.compress(_value, options.compress.encodeURI);
+        _value = sh.unique(_value);
         attributes[attribute] = _value;
       }
       if (_.has(options, 'concatenate')) {
